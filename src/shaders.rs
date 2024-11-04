@@ -65,7 +65,8 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Devuelve el color de la luna o de la tierra, según se desee.
     //earth_color(fragment, uniforms)
     //moon_color(fragment, uniforms)
-    sun_gradient(fragment, uniforms)
+   // sun_gradient(fragment, uniforms)
+   gas_planet_color(fragment, uniforms)
 }
 
 /// Calcula el color para un fragmento en la superficie de la Tierra.
