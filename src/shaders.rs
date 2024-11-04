@@ -66,7 +66,10 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     //earth_color(fragment, uniforms)
     //moon_color(fragment, uniforms)
    // sun_gradient(fragment, uniforms)
-   gas_planet_color(fragment, uniforms)
+   //gas_planet_color(fragment, uniforms)
+   //rocky_planet_color(fragment, uniforms)
+   //star_planet_color(fragment, uniforms)
+   fantasy_planet_color(fragment, uniforms)
 }
 
 /// Calcula el color para un fragmento en la superficie de la Tierra.
@@ -183,25 +186,142 @@ fn sun_gradient(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 
 fn gas_planet_color(fragment: &Fragment, uniforms: &Uniforms) -> Color {
-    // Obtiene un valor de ruido para simular la variación de nubes.
-    let noise_value = uniforms.noise.get_noise_2d(fragment.vertex_position.x * 5.0, fragment.vertex_position.z * 5.0);
+    // Utiliza la posición del fragmento y el tiempo para generar un "seed" para el ruido.
+    let seed = uniforms.time as f32 * fragment.vertex_position.y * fragment.vertex_position.x;
     
+    // Crea un generador de números aleatorios basado en el seed.
+    let mut rng = StdRng::seed_from_u64(seed.abs() as u64);
+    
+    // Genera un número aleatorio para la variación en el color.
+    let random_number = rng.gen_range(0..=100);
+
     // Define colores base para el planeta gaseoso.
-    let base_color = Color::new(0, 102, 204); // Azul profundo.
-    let cloud_color = Color::new(255, 255, 255); // Blanco para las nubes.
-    let light_blue_color = Color::new(135, 206, 235); // Azul claro.
+    let base_color = Color::new(70, 130, 180); // Azul
+    let cloud_color = Color::new(255, 255, 255); // Blanco para nubes
+    let shadow_color = Color::new(50, 50, 100); // Color oscuro para sombras
 
-    // Crea un factor de opacidad basado en el valor de ruido.
-    let cloud_factor = (noise_value * 0.5 + 0.5).max(0.0).min(1.0); // Normaliza el ruido entre 0 y 1.
+    // Calcular el factor de nubes usando el ruido
+    let noise_value = uniforms.noise.get_noise_2d(fragment.vertex_position.x * 5.0, fragment.vertex_position.z * 5.0);
+    let cloud_factor = (noise_value * 0.5 + 0.5).powi(2); // Escala el ruido entre 0 y 1.
 
-    // Calcula el color del planeta aplicando el factor de nube.
-    let planet_color = base_color * (1.0 - cloud_factor) + light_blue_color * cloud_factor;
+    // Selección de color basado en el número aleatorio para agregar variación.
+    let planet_color = if random_number < 50 {
+        base_color * (1.0 - cloud_factor) + cloud_color * cloud_factor
+    } else {
+        cloud_color * cloud_factor // Predominan las nubes
+    };
 
-    // Añade un efecto de nubes al planeta.
-    let final_color = planet_color + cloud_color * cloud_factor * 0.5; // Nubes más difusas.
+    // Añadir sombras sutiles
+    let shadow_factor = (1.0 - noise_value).max(0.0);
+    let shadow_effect = shadow_color * shadow_factor * 0.3; // Sombra suave
 
-    // Simula un brillo suave alrededor del planeta.
-    let glow_color = Color::new(255, 255, 255) * 0.1 * cloud_factor; // Brillo suave para simular la atmósfera.
+    // Combina el color del planeta y las sombras
+    let final_color = planet_color + shadow_effect;
+
+    // Brillo atmosférico (opcional)
+    let glow_color = Color::new(200, 200, 255); // Brillo azul claro
+    let glow_factor = (1.0 - (fragment.vertex_position.y / 10.0).max(0.0).min(1.0)).max(0.0); // Basado en altura
+    let final_glow = glow_color * glow_factor * 0.1; // Brillo sutil
+
+    // Devuelve el color final combinado
+    final_color + final_glow
+}
+
+fn rocky_planet_color(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Utiliza la posición del fragmento y el tiempo para generar un "seed" para el ruido.
+    let seed = uniforms.time as f32 * fragment.vertex_position.y * fragment.vertex_position.x;
+
+    // Crea un generador de números aleatorios basado en el seed.
+    let mut rng = StdRng::seed_from_u64(seed.abs() as u64);
     
-    final_color + glow_color // Retorna el color final del planeta gaseoso.
+    // Define colores base para el planeta rocoso.
+    let base_color = Color::new(139, 69, 19); // Marrón (color de tierra)
+    let highlight_color = Color::new(255, 255, 255); // Blanco para resaltar
+    let shadow_color = Color::new(80, 50, 0); // Sombra más oscura
+
+    // Calcular el factor de ruido para la textura del planeta
+    let noise_value = uniforms.noise.get_noise_2d(fragment.vertex_position.x * 3.0, fragment.vertex_position.z * 3.0);
+    let texture_factor = (noise_value * 0.5 + 0.5).powi(2); // Escala el ruido entre 0 y 1.
+
+    // Crear líneas utilizando el ruido en la textura
+    let line_factor = ((fragment.vertex_position.x + fragment.vertex_position.z) * 10.0).sin();
+    let line_color = if line_factor > 0.0 {
+        highlight_color
+    } else {
+        shadow_color
+    };
+
+    // Combina el color base con las líneas
+    let planet_color = base_color * (1.0 - texture_factor) + line_color * texture_factor;
+
+    // Añadir sombras sutiles
+    let shadow_factor = (1.0 - noise_value).max(0.0);
+    let shadow_effect = shadow_color * shadow_factor * 0.3; // Sombra suave
+
+    // Devuelve el color final combinado
+    planet_color + shadow_effect
+}
+
+fn star_planet_color(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Utiliza la posición del fragmento y el tiempo para generar un "seed" para el ruido.
+    let seed = uniforms.time as f32 * fragment.vertex_position.y * fragment.vertex_position.x;
+
+    // Crea un generador de números aleatorios basado en el seed.
+    let mut rng = StdRng::seed_from_u64(seed.abs() as u64);
+    
+    // Define colores base para el planeta estrellado.
+    let base_color = Color::new(30, 30, 60); // Azul oscuro para el fondo del planeta
+    let star_color = Color::new(255, 255, 255); // Blanco para las estrellas
+
+    // Calcular el factor de ruido para las estrellas
+    let noise_value = uniforms.noise.get_noise_2d(fragment.vertex_position.x * 5.0, fragment.vertex_position.z * 5.0);
+    let star_factor = (noise_value * 0.5 + 0.5).powi(2); // Escala el ruido entre 0 y 1.
+
+    // Determinar si hay una estrella en este fragmento
+    let random_number = rng.gen_range(0..=100);
+    let is_star = random_number < (star_factor * 100.0) as u32; // Convertir el star_factor a un rango de 0 a 100.
+
+    // Calcular el color del fragmento
+    let planet_color = if is_star {
+        star_color // Si es una estrella, usa el color de la estrella
+    } else {
+        base_color // Si no, usa el color de fondo
+    };
+
+    // Añadir un brillo para las estrellas
+    let brightness = if is_star { 0.7 } else { 0.0 }; // Brillo solo si es una estrella
+    let star_effect = star_color * brightness;
+
+    // Devuelve el color final combinado
+    planet_color + star_effect
+}
+
+fn fantasy_planet_color(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Define colores base para el planeta fantástico.
+    let base_color = Color::new(50, 50, 200); // Azul profundo.
+    let accent_color = Color::new(180, 80, 200); // Púrpura vibrante para los detalles.
+    let cloud_color = Color::new(255, 255, 255); // Blanco para las nubes.
+
+    // Cálculo del ruido para la textura del planeta
+    let noise_value = uniforms.noise.get_noise_2d(fragment.vertex_position.x * 2.0, fragment.vertex_position.z * 2.0);
+    let cloud_factor = (noise_value * 0.5 + 0.5).powi(3); // Escala el ruido para suavizar la textura.
+
+    // Calcula un desplazamiento basado en la posición Y del fragmento para crear capas.
+    let layer_offset = (fragment.vertex_position.y * 0.5).sin() * 0.5; // Controla la "altura" de las capas.
+    
+    // Determina el color del fragmento en función de su altura
+    let planet_color = if fragment.vertex_position.y > 0.0 {
+        // En la parte superior del planeta, añade un efecto de nubes
+        base_color * (1.0 - cloud_factor) + cloud_color * cloud_factor
+    } else {
+        // En la parte inferior del planeta, utiliza el color de acento
+        accent_color * (1.0 + layer_offset)
+    };
+
+    // Efecto de brillo para dar profundidad
+    let brightness = 0.1; // Brillo constante
+    let light_effect = Color::new((brightness * 255.0) as u8, (brightness * 255.0) as u8, (brightness * 255.0) as u8);
+
+    // Devuelve el color final combinado
+    planet_color + light_effect
 }
